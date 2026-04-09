@@ -44,15 +44,40 @@ vi_tri = st.selectbox("Vị trí so với biển",
 
 # 4. Xử lý dự đoán
 if st.button("Dự Đoán Ngay"):
-    # Tên cột phải khớp Y HỆT file housing.csv (trừ cột giá nhà)
-    input_data = pd.DataFrame([[
-        kinh_do, vi_do, tuoi_nha, tong_phong, tong_ngu, dan_so, so_ho, thu_nhap, vi_tri
-    ]], columns=['kinh_do', 'vi_do', 'tuoi_nha_trung_binh', 'tong_so_phong', 
-                 'tong_so_phong_ngu', 'dan_so', 'so_ho_gia_dinh', 'thu_nhap_trung_binh', 'vi_tri_gan_bien'])
-
     try:
+        # TỰ ĐỘNG TÍNH 3 CỘT ĐẶC TRƯNG MÀ MÔ HÌNH YÊU CẦU
+        # Các công thức này phải giống hệt lúc bạn làm trên Colab
+        phong_tren_moi_ho = tong_phong / so_ho
+        ty_le_phong_ngu = tong_ngu / tong_phong
+        dan_so_tren_moi_ho = dan_so / so_ho
+
+        # Tạo DataFrame đúng 11 cột với tên và thứ tự Y HỆT lúc train mô hình
+        input_data = pd.DataFrame([[
+            kinh_do, 
+            vi_do, 
+            tuoi_nha, 
+            tong_phong, 
+            tong_ngu, 
+            dan_so, 
+            so_ho, 
+            thu_nhap,
+            phong_tren_moi_ho,
+            ty_le_phong_ngu,
+            dan_so_tren_moi_ho,
+            vi_tri
+        ]], columns=[
+            'kinh_do', 'vi_do', 'tuoi_nha_trung_binh', 'tong_so_phong', 
+            'tong_so_phong_ngu', 'dan_so', 'so_ho_gia_dinh', 'thu_nhap_trung_binh',
+            'phong_tren_moi_ho', 'ty_le_phong_ngu', 'dan_so_tren_moi_ho',
+            'vi_tri_gan_bien'
+        ])
+
+        # Thực hiện dự đoán
         prediction = model.predict(input_data)
+        
+        # Hiển thị kết quả
         st.success(f"### 💰 Giá nhà dự báo: ${prediction[0]:,.2f}")
+        
     except Exception as e:
         st.error(f"Lỗi dự đoán: {e}")
-        st.info("Kiểm tra lại: File .pkl phải được lưu kèm Pipeline xử lý tên cột tiếng Việt.")
+        st.info("Lưu ý: Đảm bảo các giá trị nhập vào không bằng 0 để tránh lỗi chia cho 0 khi tính tỷ lệ.")
