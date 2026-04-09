@@ -10,7 +10,7 @@ st.set_page_config(page_title="Dự Đoán Giá Nhà California", layout="center
 @st.cache_resource
 def load_model():
     # Đảm bảo file .pkl nằm cùng thư mục với file app.py này
-    with open("house_price_model_final.pkl", "rb") as f:
+    with open("mo_hinh_random_forest.pkl", "rb") as f
         model = pickle.load(f)
     return model
 
