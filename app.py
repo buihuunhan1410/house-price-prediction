@@ -4,78 +4,65 @@ import numpy as np
 import pickle
 from sklearn.pipeline import Pipeline
 
-# 1. Cấu hình giao diện
-st.set_page_config(page_title="Dự Đoán Giá Nhà California", layout="wide")
+# 1. Cấu hình trang
+st.set_page_config(page_title="Dự Đoán Giá Nhà California", layout="centered")
 
-# 2. Hàm Load mô hình (Xử lý lỗi AttributeError và phiên bản)
+# 2. Hàm load mô hình
 @st.cache_resource
 def load_model():
     try:
-        # Đảm bảo file mo_hinh_random_forest.pkl nằm cùng thư mục với app.py
+        # File phải tên là mo_hinh_random_forest.pkl trên GitHub
         with open("mo_hinh_random_forest.pkl", "rb") as f:
-            model = pickle.load(f)
-        return model
+            return pickle.load(f)
     except Exception as e:
-        st.error(f"Không thể tải mô hình: {e}")
+        st.error(f"Lỗi load mô hình: {e}")
         return None
 
 model = load_model()
 
-# 3. Giao diện người dùng
-st.title("🏠 Ứng Dụng Dự Đoán Giá Nhà California")
-st.info("Nhập các thông số cơ bản, hệ thống sẽ tự động tính toán các chỉ số nâng cao cho mô hình.")
+# 3. Giao diện
+st.title("🏠 Dự Đoán Giá Nhà California")
+st.write("Vui lòng nhập thông số căn nhà:")
 
-if model is not None:
-    # Chia làm 2 cột để nhập liệu cho đẹp
+if model:
     col1, col2 = st.columns(2)
-
     with col1:
-        thu_nhap = st.number_input("Thu nhập trung bình (Median Income)", value=3.5)
-        tuoi_nha = st.number_input("Tuổi nhà trung bình (Housing Median Age)", value=20)
-        dan_so = st.number_input("Dân số khu vực (Population)", value=1000)
-        so_ho = st.number_input("Số hộ gia đình (Households)", value=400)
-
+        thu_nhap = st.number_input("Thu nhập trung bình", value=3.5)
+        tuoi_nha = st.number_input("Tuổi nhà trung bình", value=20)
+        dan_so = st.number_input("Dân số khu vực", value=1000)
+        so_ho = st.number_input("Số hộ gia đình", value=400)
     with col2:
-        kinh_do = st.number_input("Kinh độ (Longitude)", value=-122.2)
-        vi_do = st.number_input("Vĩ độ (Latitude)", value=37.8)
-        tong_phong = st.number_input("Tổng số phòng (Total Rooms)", value=1500)
-        tong_ngu = st.number_input("Tổng số phòng ngủ (Total Bedrooms)", value=300)
+        kinh_do = st.number_input("Kinh độ", value=-122.2)
+        vi_do = st.number_input("Vĩ độ", value=37.8)
+        tong_phong = st.number_input("Tổng số phòng", value=1500)
+        tong_ngu = st.number_input("Tổng số phòng ngủ", value=300)
 
-    vi_tri = st.selectbox("Vị trí so với biển (Ocean Proximity)", 
+    vi_tri = st.selectbox("Vị trí so với biển", 
                          ['gan_vinh', 'trong_dat_lien', 'gan_bien', 'dao', '<1H OCEAN'])
 
-    # 4. Nút dự đoán và xử lý dữ liệu
-    if st.button("Dự Đoán Giá Nhà"):
+    if st.button("Dự Đoán Ngay"):
         try:
-            # Bước A: Tạo DataFrame từ 9 cột đầu vào
-            input_df = pd.DataFrame([[
+            # Tạo DataFrame từ 9 cột nhập vào
+            data = pd.DataFrame([[
                 kinh_do, vi_do, tuoi_nha, tong_phong, tong_ngu, dan_so, so_ho, thu_nhap, vi_tri
             ]], columns=['kinh_do', 'vi_do', 'tuoi_nha_trung_binh', 'tong_so_phong', 
                          'tong_so_phong_ngu', 'dan_so', 'so_ho_gia_dinh', 'thu_nhap_trung_binh', 'vi_tri_gan_bien'])
 
-            # Bước B: TỰ TÍNH 3 CỘT PHÁI SINH (Vì file pkl yêu cầu đủ 12 cột)
-            # Pipeline của bạn cần 11 cột số và 1 cột chữ = 12 cột
-            input_df["phong_tren_moi_ho"] = input_df["tong_so_phong"] / input_df["so_ho_gia_dinh"]
-            input_df["ty_le_phong_ngu"] = input_df["tong_so_phong_ngu"] / input_df["tong_so_phong"]
-            input_df["dan_so_tren_moi_ho"] = input_df["dan_so"] / input_df["so_ho_gia_dinh"]
+            # TỰ TÍNH 3 CỘT PHÁI SINH ĐỂ ĐỦ 12 CỘT
+            data["phong_tren_moi_ho"] = data["tong_so_phong"] / data["so_ho_gia_dinh"]
+            data["ty_le_phong_ngu"] = data["tong_so_phong_ngu"] / data["tong_so_phong"]
+            data["dan_so_tren_moi_ho"] = data["dan_so"] / data["so_ho_gia_dinh"]
 
-            # Bước C: Sắp xếp lại đúng thứ tự cột mà mô hình đã học trong Colab
-            columns_order = [
-                'kinh_do', 'vi_do', 'tuoi_nha_trung_binh', 'tong_so_phong', 
-                'tong_so_phong_ngu', 'dan_so', 'so_ho_gia_dinh', 'thu_nhap_trung_binh',
-                'phong_tren_moi_ho', 'ty_le_phong_ngu', 'dan_so_tren_moi_ho', 'vi_tri_gan_bien'
-            ]
-            input_final = input_df[columns_order]
-
-            # Bước D: Thực hiện dự đoán
-            prediction = model.predict(input_final)
+            # Sắp xếp đúng thứ tự mà Pipeline yêu cầu
+            order = ['kinh_do', 'vi_do', 'tuoi_nha_trung_binh', 'tong_so_phong', 
+                     'tong_so_phong_ngu', 'dan_so', 'so_ho_gia_dinh', 'thu_nhap_trung_binh',
+                     'phong_tren_moi_ho', 'ty_le_phong_ngu', 'dan_so_tren_moi_ho', 'vi_tri_gan_bien']
             
-            # Hiển thị kết quả
-            st.success(f"### 💰 Giá nhà dự báo: ${prediction[0]:,.2f}")
+            final_df = data[order]
+            
+            # Dự đoán
+            ket_qua = model.predict(final_df)
+            st.success(f"### 💰 Giá nhà dự báo: ${ket_qua[0]:,.2f}")
             
         except Exception as e:
-            st.error(f"Lỗi khi dự đoán: {e}")
-            st.warning("Gợi ý: Hãy đảm bảo phiên bản scikit-learn trên Streamlit giống với lúc train mô hình.")
-
-else:
-    st.warning("⚠️ Không thể chạy ứng dụng vì lỗi nạp mô hình.")
+            st.error(f"Lỗi tính toán: {e}")
